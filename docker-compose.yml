@@ -1,0 +1,17 @@
+version: '1.0'
+
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: practica3_cassandra
+    ports:
+      - "9042:9042"
+    volumes:
+      - ./data:/var/lib/cassandra
+    environment:
+      CASSANDRA_CLUSTER_NAME: "ClusterPractica3"
+    restart: always
+
+networks:
+  practica3_network:
+    driver: bridge
