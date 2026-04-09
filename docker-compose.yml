@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: practica3_cassandra
+    ports:
+      - "9042:9042"
+    volumes:
+      - ./data:/var/lib/cassandra
+    networks:
+      - practica3_network
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: practica3_grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - practica3_network
+    depends_on:
+      - cassandra
+    restart: always
+
+networks:
+  practica3_network:
+    driver: bridge
