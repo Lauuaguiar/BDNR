@@ -1,53 +1,64 @@
 from gevent import monkey
 monkey.patch_all()
+
 import json
-import math
 from cassandra.cluster import Cluster
+from datetime import datetime
+
+def parse_ts(ts):
+    if ts:
+        return datetime.fromisoformat(ts)
+    return None
 
 def cargar_json_a_cassandra():
-    # 1. Conexión al contenedor de Docker
-    # Usamos 127.0.0.1 porque el puerto 9042 está mapeado a tu localhost
+    # 1. Conexión
     cluster = Cluster(['127.0.0.1'], port=9042)
     session = cluster.connect()
 
-    # 2. Configuración inicial
-    session.execute("USE tienda_keyspace;")
+    # 2. Keyspace
+    session.execute("USE tienda_keyspace;")  # ⚠️ cambia si usas otro
 
-    # 3. Preparar la inserción (Vars Mapping)
+    # 3. Query adaptada a la NUEVA tabla
     query = """
-        INSERT INTO ventas_final (
-            id_orden, fecha, estado, riesgo_tardanza, 
-            cliente_nombre, cliente_ubicacion, 
-            producto_nombre, producto_precio, metadatos
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO pedidos_dashboard (
+            id_orden, fecha, estado, riesgo_tardanza,
+            cliente_nombre, cliente_ubicacion,
+            producto_nombre, precio,
+            market_event_time_1, market_category_1, market_brand_1, market_price_1,
+            market_event_time_2, market_category_2, market_brand_2, market_price_2
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
+
     prepared = session.prepare(query)
 
-    # 4. Leer el archivo JSON
-    # Asegúrate de que la ruta sea correcta o que el archivo esté en la misma carpeta
-    ruta_archivo = r'C:\Users\laura\OneDrive\Escritorio\BDNR\base_fusionada_final.json'
-    
+    # 4. Ruta JSON limpio
+    ruta_archivo = "datos_limpios.json"
+
     print("Iniciando carga de datos...")
-    
+
     with open(ruta_archivo, 'r', encoding='utf-8') as f:
         data = json.load(f)
-        
+
         for row in data:
-            # Limpieza de precio (gestión de NaNs)
-            p = row['producto']['precio']
-            precio_limpio = p if (isinstance(p, (int, float)) and not math.isnan(p)) else 0.0
-            
-            # Ejecución del mapeo
             session.execute(prepared, (
-                row['id_orden'],
-                row['info_venta']['fecha'],
-                row['info_venta']['estado'],
-                row['info_venta']['riesgo_tardanza'],
-                row['cliente']['nombre'],
-                row['cliente']['ubicacion'],
-                row['producto']['nombre'],
-                precio_limpio,
-                json.dumps(row['metadatos_enriquecidos']) # Estoc Metadata
+                row["id_orden"],
+                parse_ts(row["fecha"]),
+                row["estado"],
+                row["riesgo_tardanza"],
+                row["cliente_nombre"],
+                row["cliente_ubicacion"],
+                row["producto_nombre"],
+                row["precio"],
+
+                parse_ts(row.get("market_event_time_1")),
+                row.get("market_category_1"),
+                row.get("market_brand_1"),
+                row.get("market_price_1"),
+
+                parse_ts(row.get("market_event_time_2")),
+                row.get("market_category_2"),
+                row.get("market_brand_2"),
+                row.get("market_price_2")
             ))
 
     print(f"¡Éxito! Se han cargado {len(data)} registros.")
