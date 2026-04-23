@@ -16,7 +16,7 @@ def cargar_json_a_cassandra():
     session = cluster.connect()
 
     # 2. Keyspace
-    session.execute("USE tienda_keyspace;")  # ⚠️ cambia si usas otro
+    session.execute("USE tienda_keyspace;")  
 
     # 3. Query adaptada a la NUEVA tabla
     query = """
