@@ -1,0 +1,1036 @@
+
+<h2 class="sr-only">Dashboard logístico profesional con análisis de datos, simulador Cassandra y gestión de pedidos</h2>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --surface2: #1a1a24;
+  --surface3: #22222f;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --accent: #6c63ff;
+  --accent2: #4ecdc4;
+  --accent3: #ff6b6b;
+  --accent4: #ffd93d;
+  --text: #e8e8f0;
+  --muted: #7a7a9a;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; }
+#app { display: flex; height: 100vh; min-height: 700px; overflow: hidden; }
+.sidebar { width: 200px; min-width: 200px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 0; }
+.sidebar-logo { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
+.logo-text { font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.1em; }
+.logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.05em; margin-top: 2px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; cursor: pointer; color: var(--muted); font-size: 12px; border-left: 2px solid transparent; transition: all 0.15s; }
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(108,99,255,0.08); }
+.nav-item i { font-size: 15px; }
+.nav-section { padding: 12px 16px 4px; font-size: 9px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; }
+.main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.topbar { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+.topbar-title { font-size: 14px; color: var(--text); font-weight: 500; }
+.topbar-meta { font-size: 11px; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+.badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+.badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+.badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+.badge-info { background: rgba(59,130,246,0.15); color: var(--info); }
+.badge-muted { background: var(--surface3); color: var(--muted); }
+.badge-purple { background: rgba(108,99,255,0.15); color: var(--accent); }
+.content { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.card-title { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.metric-val { font-size: 22px; font-weight: 600; color: var(--text); }
+.metric-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.metric-delta { font-size: 11px; margin-top: 4px; }
+.metric-delta.up { color: var(--success); }
+.metric-delta.down { color: var(--danger); }
+.chart-wrap { position: relative; width: 100%; }
+.section-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.tab-row { display: flex; gap: 2px; margin-bottom: 16px; background: var(--surface2); padding: 3px; border-radius: 8px; border: 1px solid var(--border); }
+.tab-btn { flex: 1; padding: 6px 10px; border: none; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; border-radius: 6px; transition: all 0.15s; font-family: inherit; }
+.tab-btn.active { background: var(--surface3); color: var(--text); }
+.page { display: none; }
+.page.active { display: block; }
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+td { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:hover td { background: var(--surface2); }
+.btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); background: var(--surface2); color: var(--text); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: #7c74ff; border-color: #7c74ff; color: #fff; }
+.btn-danger { border-color: var(--danger); color: var(--danger); }
+.btn-danger:hover { background: rgba(239,68,68,0.1); }
+.btn-sm { padding: 4px 10px; font-size: 10px; }
+input, select, textarea { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-family: inherit; width: 100%; outline: none; transition: border-color 0.15s; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: var(--surface2); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.form-group { margin-bottom: 12px; }
+.node-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.node-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.node-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.node-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); }
+.node-name { font-size: 11px; color: var(--accent2); font-weight: 500; }
+.progress-bar { height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; margin: 4px 0; }
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+.token-row { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 6px; }
+.token { width: 6px; height: 6px; border-radius: 1px; background: var(--accent); opacity: 0.4; }
+.token.active { opacity: 1; }
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.cass-flow { position: relative; }
+.ring-diagram { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 8px 0; }
+.ring-node { text-align: center; }
+.ring-circle { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: var(--accent); position: relative; background: rgba(108,99,255,0.1); margin: 0 auto 6px; }
+.ring-circle::after { content: ''; position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 1px dashed rgba(108,99,255,0.3); }
+.ring-arrow { color: var(--muted); font-size: 16px; align-self: center; }
+.search-bar { position: relative; margin-bottom: 12px; }
+.search-bar input { padding-left: 30px; }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+.pagination { display: flex; align-items: center; gap: 6px; margin-top: 12px; justify-content: flex-end; }
+.page-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; font-family: inherit; }
+.page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-row select { width: auto; }
+.order-form { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; max-width: 640px; margin: 0 auto; }
+.order-step { margin-bottom: 20px; }
+.order-product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.product-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: pointer; transition: all 0.15s; background: var(--surface2); }
+.product-card:hover { border-color: var(--accent); }
+.product-card.selected { border-color: var(--accent); background: rgba(108,99,255,0.1); }
+.product-name { font-size: 11px; color: var(--text); font-weight: 500; margin-bottom: 2px; }
+.product-price { font-size: 13px; color: var(--accent4); font-weight: 600; }
+.product-cat { font-size: 10px; color: var(--muted); }
+.confirm-box { background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 14px; margin-top: 12px; }
+.confirm-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+.confirm-row.total { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 8px; font-weight: 600; color: var(--accent4); }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface); border: 1px solid var(--success); color: var(--success); padding: 10px 16px; border-radius: 8px; font-size: 12px; z-index: 999; transition: opacity 0.3s; }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 20px; width: 480px; max-height: 80vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-title { font-size: 14px; color: var(--text); font-weight: 500; }
+.close-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; }
+.sparkline { display: flex; align-items: flex-end; gap: 2px; height: 30px; }
+.spark-bar { flex: 1; background: var(--accent); border-radius: 1px; opacity: 0.7; min-width: 3px; }
+.cat-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 10px; background: var(--surface3); color: var(--muted); border: 1px solid var(--border); }
+.risk-indicator { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.risk-dot { width: 6px; height: 6px; border-radius: 50%; }
+.scroll-area { overflow-y: auto; max-height: 280px; }
+</style>
+
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">OPAELECTRO</div>
+      <div class="logo-sub">Store · Logistics Intelligence</div>
+    </div>
+    <div style="padding: 8px 0; flex:1;">
+      <div class="nav-section">Análisis</div>
+      <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard"><i class="ti ti-layout-dashboard" aria-hidden="true"></i>Dashboard</div>
+      <div class="nav-item" onclick="showPage('analytics')" id="nav-analytics"><i class="ti ti-chart-dots" aria-hidden="true"></i>Analytics</div>
+      <div class="nav-section">Sistema</div>
+      <div class="nav-item" onclick="showPage('cassandra')" id="nav-cassandra"><i class="ti ti-database" aria-hidden="true"></i>Cassandra</div>
+      <div class="nav-section">Gestión</div>
+      <div class="nav-item" onclick="showPage('orders')" id="nav-orders"><i class="ti ti-list-details" aria-hidden="true"></i>Pedidos</div>
+      <div class="nav-item" onclick="showPage('neworder')" id="nav-neworder"><i class="ti ti-plus" aria-hidden="true"></i>Nuevo Pedido</div>
+    </div>
+    <div style="padding: 12px 16px; border-top: 1px solid var(--border);">
+      <div style="font-size: 10px; color: var(--muted);">Registros cargados</div>
+      <div style="font-size: 16px; color: var(--accent); font-weight: 600;" id="total-records">—</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="page-title">Dashboard Comercial</div>
+        <div class="topbar-meta" id="page-meta">Vista general de operaciones logísticas</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-sm" onclick="applyPriceRegulation()" title="Recalcula precios propios entre 0-5% sobre la media de mercado" style="border-color:var(--accent4);color:var(--accent4)"><i class="ti ti-adjustments" aria-hidden="true"></i> Regular precios</button>
+        <button class="btn btn-sm btn-primary" onclick="saveJSON()" title="Guardar cambios en el JSON"><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar</button>
+        <span class="badge badge-success pulse"><i class="ti ti-circle-filled" style="font-size:8px;margin-right:3px" aria-hidden="true"></i>Sistema activo</span>
+        <span style="font-size:11px;color:var(--muted);" id="clock-display"></span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-package" aria-hidden="true"></i>Total Órdenes</div>
+            <div class="metric-val" id="m-total">—</div>
+            <div class="metric-sub">Todos los estados</div>
+            <div class="sparkline" id="spark-total" style="margin-top:8px"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-circle-check" aria-hidden="true"></i>Completadas</div>
+            <div class="metric-val" id="m-complete" style="color:var(--success)">—</div>
+            <div class="metric-sub" id="m-complete-pct">—</div>
+            <div class="metric-delta up" id="m-complete-delta"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Riesgo Tardanza</div>
+            <div class="metric-val" id="m-risk" style="color:var(--warning)">—</div>
+            <div class="metric-sub" id="m-risk-pct">De las órdenes</div>
+            <div class="metric-delta down" id="m-risk-delta"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-currency-dollar" aria-hidden="true"></i>Revenue Total</div>
+            <div class="metric-val" id="m-revenue" style="color:var(--accent4)">—</div>
+            <div class="metric-sub">Suma de precios</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-chart-bar" aria-hidden="true"></i>Distribución de Estados</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="chart-estados" role="img" aria-label="Distribución de estados de pedidos">Gráfico de estados de pedidos logísticos.</canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-map-pin" aria-hidden="true"></i>Top 10 Ciudades por Volumen</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="chart-ciudades" role="img" aria-label="Top ciudades por volumen de pedidos">Top ciudades por pedidos.</canvas></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-timeline" aria-hidden="true"></i>Evolución Temporal (Órdenes/Mes)</div>
+            <div class="chart-wrap" style="height:180px"><canvas id="chart-timeline" role="img" aria-label="Evolución temporal de órdenes">Tendencia mensual de órdenes.</canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-flame" aria-hidden="true"></i>Fraude Sospechoso por Producto</div>
+            <div class="chart-wrap" style="height:180px"><canvas id="chart-fraud" role="img" aria-label="Fraude por producto">Pedidos con sospecha de fraude por producto.</canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS PAGE -->
+      <div class="page" id="page-analytics">
+        <div class="section-title">Análisis de mercado & competencia</div>
+        <!-- Regulación de precios banner -->
+        <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <i class="ti ti-adjustments" style="color:var(--accent4);font-size:18px" aria-hidden="true"></i>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--text);font-weight:500">Regulación de precios activa — OpaElectro Store</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Precio propio = media(market_price_1, market_price_2) × (1 + δ), donde δ ∈ [0%, 5%]</div>
+          </div>
+          <div id="price-reg-stats" style="font-size:10px;color:var(--accent4)"></div>
+          <button class="btn btn-sm" onclick="applyPriceRegulation()" style="border-color:var(--accent4);color:var(--accent4)"><i class="ti ti-refresh" aria-hidden="true"></i> Recalcular</button>
+        </div>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-building-store" aria-hidden="true"></i>Top Marcas de Mercado</div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chart-brands" role="img" aria-label="Marcas más frecuentes en el mercado">Marcas del mercado.</canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-category" aria-hidden="true"></i>Categorías de Producto</div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chart-cats" role="img" aria-label="Distribución por categoría de producto">Categorías de mercado.</canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-currency-exchange" aria-hidden="true"></i>Precios Propios vs Mercado</div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chart-prices" role="img" aria-label="Comparativa de precios propios vs mercado">Comparativa de precios.</canvas></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><i class="ti ti-alert-circle" aria-hidden="true"></i>Riesgo vs Estado (Heatmap)</div>
+            <div id="heatmap-container" style="margin-top:4px"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-trending-up" aria-hidden="true"></i>Precio medio por Producto</div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chart-prodprice" role="img" aria-label="Precio medio por producto">Precio por producto.</canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CASSANDRA PAGE -->
+      <div class="page" id="page-cassandra">
+        <div class="section-title">Simulación de arquitectura Cassandra distribuida</div>
+        <div class="grid-3">
+          <div class="card" id="cass-stats">
+            <div class="card-title"><i class="ti ti-server" aria-hidden="true"></i>Configuración del Clúster</div>
+            <div style="margin-bottom:12px">
+              <div class="form-label">Número de nodos</div>
+              <input type="range" min="2" max="6" value="3" id="node-count" style="width:100%" oninput="updateCassandra()">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px"><span>2</span><span id="node-val">3 nodos</span><span>6</span></div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div class="form-label">Factor de replicación</div>
+              <input type="range" min="1" max="3" value="2" id="replication" style="width:100%" oninput="updateCassandra()">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px"><span>1</span><span id="rep-val">RF=2</span><span>3</span></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <div class="form-label">Estrategia</div>
+              <select id="strategy" onchange="updateCassandra()">
+                <option>SimpleStrategy</option>
+                <option>NetworkTopologyStrategy</option>
+              </select>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5" id="cass-info">—</div>
+          </div>
+          <div class="card" style="grid-column: span 2;">
+            <div class="card-title"><i class="ti ti-circles-relation" aria-hidden="true"></i>Distribución de tokens en anillo</div>
+            <div id="ring-display"></div>
+          </div>
+        </div>
+        <div class="section-title" style="margin-top:4px">Carga de datos por nodo</div>
+        <div id="nodes-grid" class="node-grid"></div>
+        <div class="card" style="margin-top:12px">
+          <div class="card-title"><i class="ti ti-terminal" aria-hidden="true"></i>Log de operaciones (simulado)</div>
+          <div id="cass-log" style="font-size:10px;color:var(--accent2);max-height:120px;overflow-y:auto;line-height:1.8"></div>
+        </div>
+      </div>
+
+      <!-- ORDERS PAGE -->
+      <div class="page" id="page-orders">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <div class="search-bar" style="flex:1;min-width:180px">
+            <i class="ti ti-search search-icon" aria-hidden="true"></i>
+            <input type="text" placeholder="Buscar por cliente, producto, ciudad..." id="search-input" oninput="renderTable()">
+          </div>
+          <select id="filter-estado" onchange="renderTable()" style="width:140px">
+            <option value="">Todos los estados</option>
+            <option>COMPLETE</option><option>PENDING</option><option>CANCELED</option>
+            <option>CLOSED</option><option>PROCESSING</option><option>PENDING_PAYMENT</option>
+            <option>SUSPECTED_FRAUD</option>
+          </select>
+          <select id="filter-riesgo" onchange="renderTable()" style="width:120px">
+            <option value="">Riesgo: Todos</option>
+            <option value="true">Con riesgo</option>
+            <option value="false">Sin riesgo</option>
+          </select>
+          <button class="btn" onclick="exportCSV()"><i class="ti ti-download" aria-hidden="true"></i> Exportar</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>ID Orden</th><th>Fecha</th><th>Cliente</th><th>Ciudad</th>
+                <th>Producto</th><th>Precio</th><th>Estado</th><th>Riesgo</th><th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+
+      <!-- NEW ORDER PAGE -->
+      <div class="page" id="page-neworder">
+        <div class="order-form">
+          <div style="margin-bottom:20px">
+            <div style="font-size:16px;font-weight:500;color:var(--text);margin-bottom:4px">Nuevo Pedido</div>
+            <div style="font-size:11px;color:var(--muted)">Selecciona producto, configura entrega y confirma el pedido</div>
+          </div>
+
+          <div class="order-step">
+            <div class="section-title" style="font-size:10px">1. Seleccionar producto</div>
+            <div class="order-product-grid" id="product-grid"></div>
+          </div>
+
+          <div class="order-step">
+            <div class="section-title" style="font-size:10px">2. Datos del pedido</div>
+            <div class="form-row">
+              <div class="form-group">
+                <div class="form-label">Nombre del cliente</div>
+                <input type="text" id="f-nombre" placeholder="Nombre completo">
+              </div>
+              <div class="form-group">
+                <div class="form-label">Ciudad de entrega</div>
+                <input type="text" id="f-ciudad" placeholder="Ciudad">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <div class="form-label">Estado del pedido</div>
+                <select id="f-estado">
+                  <option>PENDING</option><option>PROCESSING</option><option>COMPLETE</option>
+                  <option>PENDING_PAYMENT</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <div class="form-label">Fecha del pedido</div>
+                <input type="date" id="f-fecha">
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label">¿Riesgo de tardanza?</div>
+              <select id="f-riesgo">
+                <option value="false">No — entrega estimada en plazo</option>
+                <option value="true">Sí — posible retraso detectado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="order-step">
+            <div class="section-title" style="font-size:10px">3. Confirmación</div>
+            <div class="confirm-box" id="confirm-box">
+              <div style="font-size:11px;color:var(--muted);text-align:center;padding:12px">Selecciona un producto para ver el resumen</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+            <button class="btn" onclick="clearForm()">Limpiar</button>
+            <button class="btn btn-primary" onclick="submitOrder()"><i class="ti ti-check" aria-hidden="true"></i> Confirmar Pedido</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let DATA = [];
+let filteredData = [];
+let currentPage = 1;
+const PER_PAGE = 12;
+let editModal = null;
+let selectedProduct = null;
+let cassInterval = null;
+let logLines = [];
+
+const PRODUCTS = [
+  { name: 'Smart Watch', price: 327.75, cat: 'electronics' },
+  { name: 'Laptop Pro', price: 899.00, cat: 'computers' },
+  { name: 'Running Shoes', price: 89.99, cat: 'sports' },
+  { name: 'Golf Towel', price: 15.99, cat: 'sports' },
+  { name: 'Fitness Deck', price: 59.99, cat: 'fitness' },
+  { name: 'Golf Polo Shirt', price: 50.00, cat: 'apparel' },
+];
+
+const STATUS_COLORS = {
+  COMPLETE: '#22c55e', PENDING: '#f59e0b', CANCELED: '#ef4444',
+  CLOSED: '#7a7a9a', PROCESSING: '#3b82f6', PENDING_PAYMENT: '#a78bfa',
+  SUSPECTED_FRAUD: '#ff6b6b'
+};
+
+function getStatusBadge(s) {
+  const map = {
+    COMPLETE:'badge-success', PENDING:'badge-warning', CANCELED:'badge-danger',
+    CLOSED:'badge-muted', PROCESSING:'badge-info', PENDING_PAYMENT:'badge-purple',
+    SUSPECTED_FRAUD:'badge-danger'
+  };
+  return `<span class="badge ${map[s]||'badge-muted'}">${s}</span>`;
+}
+
+// ─── JSON PATH ────────────────────────────────────────────────────────────────
+const JSON_PATH = './datos_ampliados-2.json';
+
+// ─── PRICE REGULATION ─────────────────────────────────────────────────────────
+// Regula el precio propio de cada registro para que esté entre 0% y 5% por encima
+// de la media de los precios de mercado (market_price_1 y market_price_2).
+// Solo aplica a registros donde ambos market_price sean > 0.
+function regulatePrices(data) {
+  return data.map(d => {
+    const mp1 = parseFloat(d.market_price_1) || 0;
+    const mp2 = parseFloat(d.market_price_2) || 0;
+    if (mp1 > 0 && mp2 > 0) {
+      const avgMarket = (mp1 + mp2) / 2;
+      const pct = Math.random() * 0.05; // 0% a 5%
+      d.precio = parseFloat((avgMarket * (1 + pct)).toFixed(2));
+    }
+    return d;
+  });
+}
+
+// ─── SAVE TO JSON ─────────────────────────────────────────────────────────────
+// Intenta guardar DATA en el JSON local vía fetch PUT.
+// En navegador estándar esto requiere un servidor local (ej. Python http.server
+// con soporte PUT, o un servidor Node.js). Si falla, muestra aviso y ofrece
+// descarga del JSON actualizado como fallback.
+async function saveJSON() {
+  try {
+    const res = await fetch(JSON_PATH, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(DATA, null, 2)
+    });
+    if (res.ok) {
+      addLog('[SAVE] JSON guardado correctamente en disco');
+      showToast('JSON guardado en disco ✓');
+    } else {
+      throw new Error('HTTP ' + res.status);
+    }
+  } catch (e) {
+    // Fallback: descarga el JSON actualizado
+    addLog('[SAVE] Servidor no disponible — descarga local activada');
+    const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'datos_ampliados.json';
+    a.click();
+    showToast('Servidor no disponible — archivo descargado', 'warning');
+  }
+}
+
+function initData() {
+  // Muestra indicador de carga
+  document.getElementById('total-records').textContent = '…';
+  document.getElementById('m-total').textContent = '…';
+
+  fetch(JSON_PATH)
+    .then(r => {
+      if (!r.ok) throw new Error('No se pudo cargar el JSON: ' + r.status);
+      return r.json();
+    })
+    .then(raw => {
+      DATA = regulatePrices(raw);
+      _onDataReady();
+      addLog(`[LOAD] ${DATA.length} registros cargados desde ${JSON_PATH}`);
+    })
+    .catch(err => {
+      // Fallback: datos de ejemplo mínimos para que el dashboard no quede vacío
+      addLog('[LOAD] ERROR: ' + err.message + ' — cargando datos de ejemplo');
+      showToast('No se pudo leer el JSON. Comprueba la ruta o el servidor local.', 'danger');
+      DATA = _fallbackData();
+      _onDataReady();
+    });
+}
+
+function _onDataReady() {
+  document.getElementById('total-records').textContent = DATA.length;
+  document.getElementById('m-total').textContent = DATA.length;
+
+  const complete = DATA.filter(d=>d.estado==='COMPLETE').length;
+  const risk = DATA.filter(d=>d.riesgo_tardanza).length;
+  const revenue = DATA.reduce((a,b)=>a+b.precio,0);
+
+  document.getElementById('m-complete').textContent = complete;
+  document.getElementById('m-complete-pct').textContent = Math.round(complete/DATA.length*100)+'% tasa de éxito';
+  document.getElementById('m-complete-delta').textContent = '↑ rendimiento óptimo';
+  document.getElementById('m-risk').textContent = risk;
+  document.getElementById('m-risk-pct').textContent = Math.round(risk/DATA.length*100)+'% con riesgo';
+  document.getElementById('m-risk-delta').textContent = risk > DATA.length*0.3 ? '↑ atención requerida' : '↓ nivel controlado';
+  document.getElementById('m-revenue').textContent = '$' + revenue.toLocaleString('en-US',{maximumFractionDigits:0});
+
+  buildSparkline();
+  buildCharts();
+  buildAnalytics();
+  buildProductGrid();
+  renderTable();
+  setDefaultDate();
+}
+
+// Fallback mínimo si el fetch falla totalmente
+function _fallbackData() {
+  return [
+    {id_orden:77202,fecha:"2018-01-31",estado:"COMPLETE",riesgo_tardanza:false,cliente_nombre:"Cally Holloway",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"unknown",market_category_1:"appliances.kitchen.washer",market_price_1:2.29,market_brand_2:"unknown",market_category_2:"computers.peripherals.mouse",market_price_2:9.93},
+    {id_orden:75939,fecha:"2018-01-13",estado:"PENDING",riesgo_tardanza:true,cliente_nombre:"Irene Luna",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"bloody",market_category_1:"computers.peripherals.keyboard",market_price_1:43.96,market_brand_2:"huawei",market_category_2:"electronics.smartphone",market_price_2:92.34},
+    {id_orden:75938,fecha:"2018-01-13",estado:"CLOSED",riesgo_tardanza:false,cliente_nombre:"Gillian Maldonado",cliente_ubicacion:"San Jose",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"apple",market_category_1:"electronics.smartphone",market_price_1:242.8,market_brand_2:"samsung",market_category_2:"electronics.smartphone",market_price_2:115.72},
+    {id_orden:75937,fecha:"2018-01-13",estado:"COMPLETE",riesgo_tardanza:false,cliente_nombre:"Tana Tate",cliente_ubicacion:"Los Angeles",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"appliances.environment.vacuum",market_price_1:8.08,market_brand_2:"samsung",market_category_2:"unknown",market_price_2:13.87},
+    {id_orden:75936,fecha:"2018-01-13",estado:"PENDING_PAYMENT",riesgo_tardanza:false,cliente_nombre:"Orli Hendricks",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"thomas",market_category_1:"appliances.environment.vacuum",market_price_1:427.06,market_brand_2:"polaris",market_category_2:"appliances.personal.scales",market_price_2:15.02},
+    {id_orden:75935,fecha:"2018-01-13",estado:"CANCELED",riesgo_tardanza:false,cliente_nombre:"Kimberly Flowers",cliente_ubicacion:"Tonawanda",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"polaris",market_category_1:"appliances.kitchen.blender",market_price_1:43.96,market_brand_2:"neo",market_category_2:"unknown",market_price_2:81.0},
+    {id_orden:75934,fecha:"2018-01-13",estado:"COMPLETE",riesgo_tardanza:true,cliente_nombre:"Constance Terrell",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"appliances.environment.vacuum",market_price_1:69.42,market_brand_2:"hp",market_category_2:"computers.peripherals.printer",market_price_2:39.1},
+    {id_orden:75933,fecha:"2018-01-13",estado:"PROCESSING",riesgo_tardanza:true,cliente_nombre:"Erica Stevens",cliente_ubicacion:"Miami",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"huawei",market_category_1:"electronics.smartphone",market_price_1:254.61,market_brand_2:"oppo",market_category_2:"electronics.smartphone",market_price_2:270.58},
+    {id_orden:75932,fecha:"2018-01-13",estado:"CLOSED",riesgo_tardanza:true,cliente_nombre:"Nichole Olsen",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"electronics.smartphone",market_price_1:856.46,market_brand_2:"braun",market_category_2:"appliances.iron",market_price_2:122.66},
+    {id_orden:75931,fecha:"2018-01-13",estado:"CLOSED",riesgo_tardanza:true,cliente_nombre:"Oprah Delacruz",cliente_ubicacion:"San Ramon",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"ava",market_category_1:"appliances.kitchen.microwave",market_price_1:43.96,market_brand_2:"samsung",market_category_2:"electronics.smartphone",market_price_2:1215.25},
+    {id_orden:75930,fecha:"2018-01-13",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Germane Short",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"electronics.tablet",market_price_1:185.16,market_brand_2:"delux",market_category_2:"computers.peripherals.mouse",market_price_2:6.0},
+    {id_orden:75929,fecha:"2018-01-13",estado:"PENDING",riesgo_tardanza:true,cliente_nombre:"Freya Robbins",cliente_ubicacion:"Freeport",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"vitek",market_category_1:"appliances.personal.scales",market_price_1:9.24,market_brand_2:"sony",market_category_2:"electronics.audio.headphone",market_price_2:45.12},
+    {id_orden:75928,fecha:"2018-01-13",estado:"PENDING",riesgo_tardanza:true,cliente_nombre:"Cassandra Jensen",cliente_ubicacion:"Salinas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"ava",market_category_1:"appliances.personal.scales",market_price_1:15.02,market_brand_2:"maxwell",market_category_2:"appliances.iron",market_price_2:18.5},
+    {id_orden:49075,fecha:"2016-12-17",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Willie Smith",cliente_ubicacion:"Houston",producto_nombre:"Nike Men's Dri-FIT Victory Golf Polo",precio:50.0,market_brand_1:"xiaomi",market_category_1:"unknown",market_price_1:18.5,market_brand_2:"bork",market_category_2:"appliances.environment.vacuum",market_price_2:335.63},
+    {id_orden:42331,fecha:"2016-09-09",estado:"CANCELED",riesgo_tardanza:false,cliente_nombre:"Melissa Ramirez",cliente_ubicacion:"Rome",producto_nombre:"Perfect Fitness Perfect Rip Deck",precio:59.99,market_brand_1:"redmond",market_category_1:"appliances.kitchen.kettle",market_price_1:37.01,market_brand_2:"hotpoint-ariston",market_category_2:"appliances.kitchen.washer",market_price_2:296.27},
+    {id_orden:41623,fecha:"2016-08-30",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Mary Chan",cliente_ubicacion:"Carlisle",producto_nombre:"Under Armour Girls' Toddler Spine Surge",precio:39.99,market_brand_1:"samsung",market_category_1:"computers.peripherals.monitor",market_price_1:92.57,market_brand_2:"ava",market_category_2:"appliances.kitchen.microwave",market_price_2:43.96},
+    {id_orden:39271,fecha:"2016-07-27",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Nicole Brooks",cliente_ubicacion:"Los Angeles",producto_nombre:"Under Armour Girls' Toddler Spine Surge",precio:39.99,market_brand_1:"trust",market_category_1:"computers.peripherals.mouse",market_price_1:7.38,market_brand_2:"x-game",market_category_2:"computers.peripherals.joystick",market_price_2:69.42},
+    {id_orden:38598,fecha:"2016-07-17",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Bruce Smith",cliente_ubicacion:"Ewa Beach",producto_nombre:"Team Golf Pittsburgh Steelers Putter Grip",precio:24.99,market_brand_1:"lavazza",market_category_1:"unknown",market_price_1:6.92,market_brand_2:"polaris",market_category_2:"appliances.iron",market_price_2:127.29},
+    {id_orden:37845,fecha:"2016-07-06",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Mary Williams",cliente_ubicacion:"Lakewood",producto_nombre:"Glove It Urban Brick Golf Towel",precio:15.99,market_brand_1:"samsung",market_category_1:"electronics.smartphone",market_price_1:300.9,market_brand_2:"xiaomi",market_category_2:"unknown",market_price_2:15.95},
+    {id_orden:37496,fecha:"2016-07-01",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Mary Silva",cliente_ubicacion:"Carrollton",producto_nombre:"Under Armour Girls' Toddler Spine Surge",precio:39.99,market_brand_1:"samsung",market_category_1:"electronics.smartphone",market_price_1:300.9,market_brand_2:"cullmann",market_category_2:"electronics.video.tv",market_price_2:69.42},
+    {id_orden:34506,fecha:"2016-05-18",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Tyler Smith",cliente_ubicacion:"Corona",producto_nombre:"Perfect Fitness Perfect Rip Deck",precio:59.99,market_brand_1:"redmond",market_category_1:"appliances.kitchen.kettle",market_price_1:37.01,market_brand_2:"unknown",market_category_2:"electronics.audio.microphone",market_price_2:6.92},
+    {id_orden:33824,fecha:"2016-05-08",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Patricia Petersen",cliente_ubicacion:"Freeport",producto_nombre:"Nike Men's Dri-FIT Victory Golf Polo",precio:50.0,market_brand_1:"thermex",market_category_1:"appliances.environment.water_heater",market_price_1:101.83,market_brand_2:"delux",market_category_2:"computers.peripherals.mouse",market_price_2:5.07},
+    {id_orden:33607,fecha:"2016-05-05",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Karen Smith",cliente_ubicacion:"Cincinnati",producto_nombre:"Perfect Fitness Perfect Rip Deck",precio:59.99,market_brand_1:"apple",market_category_1:"electronics.clocks",market_price_1:486.09,market_brand_2:"samsung",market_category_2:"unknown",market_price_2:18.5},
+    {id_orden:32617,fecha:"2016-04-21",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Shawn Smith",cliente_ubicacion:"Germantown",producto_nombre:"adidas Men's Germany Black Crest Away Tee",precio:25.0,market_brand_1:"unknown",market_category_1:"electronics.audio.microphone",market_price_1:6.92,market_brand_2:"samsung",market_category_2:"construction.tools.screw",market_price_2:16.18},
+    {id_orden:75927,fecha:"2018-01-13",estado:"COMPLETE",riesgo_tardanza:true,cliente_nombre:"Natalie Mcfadden",cliente_ubicacion:"Caguas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"electronics.smartphone",market_price_1:185.0,market_brand_2:"apple",market_category_2:"electronics.clocks",market_price_2:486.09},
+    {id_orden:75926,fecha:"2018-01-13",estado:"COMPLETE",riesgo_tardanza:false,cliente_nombre:"Lucas Rivera",cliente_ubicacion:"Miami",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"huawei",market_category_1:"electronics.smartphone",market_price_1:254.0,market_brand_2:"hp",market_category_2:"computers.notebook",market_price_2:599.0},
+    {id_orden:75925,fecha:"2018-01-12",estado:"PENDING",riesgo_tardanza:false,cliente_nombre:"Sofia Morales",cliente_ubicacion:"New York",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"apple",market_category_1:"electronics.clocks",market_price_1:399.0,market_brand_2:"fitbit",market_category_2:"electronics.wearables",market_price_2:149.0},
+    {id_orden:75924,fecha:"2018-01-12",estado:"PROCESSING",riesgo_tardanza:true,cliente_nombre:"Carlos Ortega",cliente_ubicacion:"Chicago",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"electronics.smartphone",market_price_1:300.0,market_brand_2:"lenovo",market_category_2:"computers.notebook",market_price_2:499.0},
+    {id_orden:75923,fecha:"2018-01-11",estado:"COMPLETE",riesgo_tardanza:false,cliente_nombre:"Ana Garcia",cliente_ubicacion:"Los Angeles",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"apple",market_category_1:"electronics.smartphone",market_price_1:799.0,market_brand_2:"bose",market_category_2:"electronics.audio.headphone",market_price_2:299.0},
+    {id_orden:75922,fecha:"2018-01-11",estado:"CLOSED",riesgo_tardanza:false,cliente_nombre:"David Chen",cliente_ubicacion:"San Francisco",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"xiaomi",market_category_1:"electronics.smartphone",market_price_1:199.0,market_brand_2:"realme",market_category_2:"electronics.smartphone",market_price_2:159.0},
+    {id_orden:75921,fecha:"2018-01-10",estado:"SUSPECTED_FRAUD",riesgo_tardanza:false,cliente_nombre:"Maria Johnson",cliente_ubicacion:"Houston",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"unknown",market_category_1:"unknown",market_price_1:5.0,market_brand_2:"unknown",market_category_2:"unknown",market_price_2:3.0},
+    {id_orden:60100,fecha:"2017-03-15",estado:"COMPLETE",riesgo_tardanza:false,cliente_nombre:"James Wilson",cliente_ubicacion:"Dallas",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"samsung",market_category_1:"electronics.smartphone",market_price_1:280.0,market_brand_2:"lg",market_category_2:"electronics.video.tv",market_price_2:450.0},
+    {id_orden:60101,fecha:"2017-04-20",estado:"PENDING",riesgo_tardanza:true,cliente_nombre:"Emma Davis",cliente_ubicacion:"Phoenix",producto_nombre:"Perfect Fitness Perfect Rip Deck",precio:59.99,market_brand_1:"reebok",market_category_1:"sport",market_price_1:89.0,market_brand_2:"adidas",market_category_2:"sport.footwear",market_price_2:120.0},
+    {id_orden:60102,fecha:"2017-05-10",estado:"COMPLETE",riesgo_tardanza:false,cliente_nombre:"Robert Brown",cliente_ubicacion:"San Antonio",producto_nombre:"Nike Men's Dri-FIT Victory Golf Polo",precio:50.0,market_brand_1:"callaway",market_category_1:"sport.golf",market_price_1:65.0,market_brand_2:"titleist",market_category_2:"sport.golf",market_price_2:75.0},
+    {id_orden:60103,fecha:"2017-06-25",estado:"CANCELED",riesgo_tardanza:false,cliente_nombre:"Jennifer Martinez",cliente_ubicacion:"San Diego",producto_nombre:"Glove It Urban Brick Golf Towel",precio:15.99,market_brand_1:"nike",market_category_1:"sport",market_price_1:22.0,market_brand_2:"puma",market_category_2:"sport",market_price_2:19.0},
+    {id_orden:60104,fecha:"2017-07-14",estado:"PROCESSING",riesgo_tardanza:true,cliente_nombre:"Michael Anderson",cliente_ubicacion:"Jacksonville",producto_nombre:"Smart watch",precio:327.75,market_brand_1:"garmin",market_category_1:"electronics.wearables",market_price_1:299.0,market_brand_2:"polar",market_category_2:"electronics.wearables",market_price_2:199.0},
+  ];
+  return d;
+}
+
+function buildSparkline() {
+  const el = document.getElementById('spark-total');
+  const months = [3,5,4,7,6,8,5,9,7,6,8,10];
+  const max = Math.max(...months);
+  el.innerHTML = months.map(v=>`<div class="spark-bar" style="height:${Math.round(v/max*100)}%"></div>`).join('');
+}
+
+function buildCharts() {
+  const ctxE = document.getElementById('chart-estados').getContext('2d');
+  const estados = {};
+  DATA.forEach(d=>{ estados[d.estado]=(estados[d.estado]||0)+1; });
+  const eLabels = Object.keys(estados);
+  const eVals = eLabels.map(k=>estados[k]);
+  const eColors = eLabels.map(k=>STATUS_COLORS[k]||'#7a7a9a');
+  new Chart(ctxE, {
+    type:'doughnut',
+    data:{ labels:eLabels, datasets:[{data:eVals, backgroundColor:eColors, borderColor:'#0a0a0f', borderWidth:2}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, position:'right', labels:{ color:'#7a7a9a', font:{size:10}, boxWidth:10, padding:8 } } } }
+  });
+
+  const ctxC = document.getElementById('chart-ciudades').getContext('2d');
+  const cities = {};
+  DATA.forEach(d=>{ cities[d.cliente_ubicacion]=(cities[d.cliente_ubicacion]||0)+1; });
+  const cSorted = Object.entries(cities).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  new Chart(ctxC, {
+    type:'bar', data:{ labels:cSorted.map(e=>e[0]), datasets:[{data:cSorted.map(e=>e[1]), backgroundColor:'rgba(78,205,196,0.7)', borderColor:'#4ecdc4', borderWidth:1}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:'#7a7a9a',font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'} }, y:{ ticks:{color:'#7a7a9a',font:{size:10}}, grid:{display:false} } } }
+  });
+
+  const ctxT = document.getElementById('chart-timeline').getContext('2d');
+  const byYear = {};
+  DATA.forEach(d=>{ const y=d.fecha.substring(0,7); byYear[y]=(byYear[y]||0)+1; });
+  const tSorted = Object.entries(byYear).sort((a,b)=>a[0].localeCompare(b[0]));
+  new Chart(ctxT, {
+    type:'line', data:{ labels:tSorted.map(e=>e[0]), datasets:[{data:tSorted.map(e=>e[1]), borderColor:'#6c63ff', backgroundColor:'rgba(108,99,255,0.1)', fill:true, tension:0.4, pointBackgroundColor:'#6c63ff', pointRadius:3}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#7a7a9a',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#7a7a9a',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}} } }
+  });
+
+  const ctxF = document.getElementById('chart-fraud').getContext('2d');
+  const fraudByProd = {};
+  DATA.filter(d=>d.estado==='SUSPECTED_FRAUD').forEach(d=>{ const p=d.producto_nombre.substring(0,18); fraudByProd[p]=(fraudByProd[p]||0)+1; });
+  const fSorted = Object.entries(fraudByProd).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  new Chart(ctxF, {
+    type:'bar', data:{ labels:fSorted.map(e=>e[0]), datasets:[{data:fSorted.map(e=>e[1]), backgroundColor:'rgba(255,107,107,0.7)', borderColor:'#ff6b6b', borderWidth:1}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#7a7a9a',font:{size:9},maxRotation:30},grid:{display:false}}, y:{ticks:{color:'#7a7a9a',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}} } }
+  });
+}
+
+function buildAnalytics() {
+  // Price regulation stats
+  const regulated = DATA.filter(d => d.market_price_1 > 0 && d.market_price_2 > 0);
+  if (regulated.length > 0) {
+    const diffs = regulated.map(d => {
+      const avg = (d.market_price_1 + d.market_price_2) / 2;
+      return avg > 0 ? ((d.precio - avg) / avg * 100) : 0;
+    });
+    const avgDiff = diffs.reduce((a,b)=>a+b,0) / diffs.length;
+    const el = document.getElementById('price-reg-stats');
+    if (el) el.textContent = `${regulated.length} reg. | Δ medio: +${avgDiff.toFixed(2)}%`;
+  }
+  const ctxBr = document.getElementById('chart-brands').getContext('2d');
+  const brands = {};
+  DATA.forEach(d=>{ if(d.market_brand_1&&d.market_brand_1!=='unknown') brands[d.market_brand_1]=(brands[d.market_brand_1]||0)+1; if(d.market_brand_2&&d.market_brand_2!=='unknown') brands[d.market_brand_2]=(brands[d.market_brand_2]||0)+1; });
+  const bSorted = Object.entries(brands).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const bColors = ['#6c63ff','#4ecdc4','#ffd93d','#ff6b6b','#a78bfa','#22c55e','#f59e0b','#3b82f6'];
+  new Chart(ctxBr, {
+    type:'polarArea', data:{ labels:bSorted.map(e=>e[0]), datasets:[{data:bSorted.map(e=>e[1]), backgroundColor:bColors.map(c=>c+'99'), borderColor:bColors, borderWidth:1}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, position:'bottom', labels:{color:'#7a7a9a',font:{size:9},boxWidth:8,padding:6} } }, scales:{ r:{ticks:{color:'#7a7a9a',backdropColor:'transparent',font:{size:9}},grid:{color:'rgba(255,255,255,0.07)'}} } }
+  });
+
+  const ctxCa = document.getElementById('chart-cats').getContext('2d');
+  const cats = {};
+  DATA.forEach(d=>{
+    const c1 = d.market_category_1 ? d.market_category_1.split('.')[0] : null;
+    const c2 = d.market_category_2 ? d.market_category_2.split('.')[0] : null;
+    if(c1&&c1!=='unknown') cats[c1]=(cats[c1]||0)+1;
+    if(c2&&c2!=='unknown') cats[c2]=(cats[c2]||0)+1;
+  });
+  const caSorted = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const caColors = ['#6c63ff','#4ecdc4','#ffd93d','#ff6b6b','#a78bfa','#22c55e','#f59e0b'];
+  new Chart(ctxCa, {
+    type:'pie', data:{ labels:caSorted.map(e=>e[0]), datasets:[{data:caSorted.map(e=>e[1]), backgroundColor:caColors.map(c=>c+'cc'), borderColor:'#0a0a0f', borderWidth:2}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, position:'bottom', labels:{color:'#7a7a9a',font:{size:9},boxWidth:8,padding:6} } } }
+  });
+
+  const ctxPr = document.getElementById('chart-prices').getContext('2d');
+  const avgOwn = DATA.reduce((a,b)=>a+b.precio,0)/DATA.length;
+  const avgM1 = DATA.reduce((a,b)=>a+b.market_price_1,0)/DATA.length;
+  const avgM2 = DATA.reduce((a,b)=>a+b.market_price_2,0)/DATA.length;
+  const byProd = {};
+  DATA.forEach(d=>{ if(!byProd[d.producto_nombre]) byProd[d.producto_nombre]={own:[],m1:[],m2:[]}; byProd[d.producto_nombre].own.push(d.precio); byProd[d.producto_nombre].m1.push(d.market_price_1); byProd[d.producto_nombre].m2.push(d.market_price_2); });
+  const prLabels = Object.keys(byProd).map(k=>k.substring(0,15));
+  const prOwn = Object.values(byProd).map(v=>Math.round(v.own.reduce((a,b)=>a+b,0)/v.own.length));
+  const prM1 = Object.values(byProd).map(v=>Math.round(v.m1.reduce((a,b)=>a+b,0)/v.m1.length));
+  new Chart(ctxPr, {
+    type:'bar', data:{ labels:prLabels, datasets:[{label:'Precio Propio', data:prOwn, backgroundColor:'rgba(108,99,255,0.7)', borderColor:'#6c63ff', borderWidth:1},{label:'Precio Mercado 1', data:prM1, backgroundColor:'rgba(78,205,196,0.7)', borderColor:'#4ecdc4', borderWidth:1}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, position:'top', labels:{color:'#7a7a9a',font:{size:9},boxWidth:8,padding:8} } }, scales:{ x:{ticks:{color:'#7a7a9a',font:{size:9},maxRotation:30},grid:{display:false}}, y:{ticks:{color:'#7a7a9a',font:{size:10}},grid:{color:'rgba(255,255,255,0.05)'}} } }
+  });
+
+  buildHeatmap();
+
+  const ctxPP = document.getElementById('chart-prodprice').getContext('2d');
+  const ppSorted = Object.entries(byProd).sort((a,b)=>{ const avgA=a[1].own.reduce((x,y)=>x+y,0)/a[1].own.length; const avgB=b[1].own.reduce((x,y)=>x+y,0)/b[1].own.length; return avgB-avgA; });
+  new Chart(ctxPP, {
+    type:'bar', data:{ labels:ppSorted.map(e=>e[0].substring(0,15)), datasets:[{data:ppSorted.map(e=>Math.round(e[1].own.reduce((a,b)=>a+b,0)/e[1].own.length)), backgroundColor:ppSorted.map((_,i)=>`hsl(${260+i*25},70%,60%)`), borderWidth:0}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#7a7a9a',font:{size:10},callback:v=>'$'+v},grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#7a7a9a',font:{size:9}},grid:{display:false}} } }
+  });
+}
+
+function buildHeatmap() {
+  const states = ['COMPLETE','PENDING','CANCELED','CLOSED','PROCESSING','SUSPECTED_FRAUD'];
+  const matrix = {};
+  states.forEach(s=>{ matrix[s]={true:0,false:0}; });
+  DATA.forEach(d=>{ if(matrix[d.estado]) matrix[d.estado][String(d.riesgo_tardanza)]++; });
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">';
+  html += '<tr><th style="color:var(--muted);padding:4px;font-weight:400">Estado</th><th style="color:var(--warning);padding:4px;font-weight:400">Con riesgo</th><th style="color:var(--success);padding:4px;font-weight:400">Sin riesgo</th></tr>';
+  states.forEach(s=>{
+    const r=matrix[s].true, nr=matrix[s].false, total=r+nr;
+    const pct=total>0?Math.round(r/total*100):0;
+    const color=pct>50?'rgba(239,68,68,':'rgba(34,197,94,';
+    html+=`<tr><td style="padding:5px 4px;color:var(--text)">${s}</td>`;
+    html+=`<td style="padding:5px 4px;text-align:center"><span style="display:inline-block;width:${Math.max(8,r*12)}px;height:12px;background:rgba(245,158,11,0.6);border-radius:2px;vertical-align:middle;margin-right:4px"></span>${r}</td>`;
+    html+=`<td style="padding:5px 4px;text-align:center"><span style="display:inline-block;width:${Math.max(8,nr*12)}px;height:12px;background:rgba(34,197,94,0.6);border-radius:2px;vertical-align:middle;margin-right:4px"></span>${nr}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('heatmap-container').innerHTML = html;
+}
+
+function updateCassandra() {
+  const nodes = parseInt(document.getElementById('node-count').value);
+  const rf = parseInt(document.getElementById('replication').value);
+  const strat = document.getElementById('strategy').value;
+  document.getElementById('node-val').textContent = nodes + ' nodos';
+  document.getElementById('rep-val').textContent = 'RF=' + rf;
+
+  const partitionsPerNode = Math.round(DATA.length / nodes);
+  const consistency = rf >= 2 ? (rf === 3 ? 'QUORUM disponible' : 'ONE/QUORUM') : 'ONE únicamente';
+  document.getElementById('cass-info').innerHTML =
+    `<b style="color:var(--accent2)">${strat}</b><br>` +
+    `~${partitionsPerNode} particiones/nodo<br>` +
+    `${rf} réplicas por token<br>` +
+    `Consistencia: ${consistency}<br>` +
+    `Disponibilidad: ${rf>1?'Alta':'Básica'}`;
+
+  buildRing(nodes, rf);
+  buildNodes(nodes);
+  addLog(`[CASS] Reconfigurado: ${nodes} nodos, RF=${rf}, ${strat}`);
+}
+
+function buildRing(nodes, rf) {
+  const colors = ['#6c63ff','#4ecdc4','#ffd93d','#ff6b6b','#a78bfa','#22c55e'];
+  let html = '<div class="ring-diagram">';
+  for(let i=0;i<nodes;i++){
+    const load = Math.round(DATA.length/nodes + (Math.random()*10-5));
+    html += `<div class="ring-node">
+      <div class="ring-circle" style="border-color:${colors[i%colors.length]};color:${colors[i%colors.length]};background:${colors[i%colors.length]}22">N${i+1}</div>
+      <div style="font-size:9px;color:var(--muted)">Token ${Math.round(i*(2**31/nodes)).toLocaleString()}</div>
+      <div style="font-size:10px;color:${colors[i%colors.length]};margin-top:2px">${load} rows</div>
+    </div>`;
+    if(i<nodes-1) html += `<div style="color:var(--muted);font-size:18px;align-self:center">→</div>`;
+  }
+  html += '<div style="color:var(--muted);font-size:18px;align-self:center">⟲</div></div>';
+  html += `<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px">Anillo de tokens — cada nodo replica a los siguientes ${rf-1} nodo(s)</div>`;
+  document.getElementById('ring-display').innerHTML = html;
+}
+
+function buildNodes(nodes) {
+  const colors = ['#6c63ff','#4ecdc4','#ffd93d','#ff6b6b','#a78bfa','#22c55e'];
+  const ops = ['READ','WRITE','COMPACT','REPAIR'];
+  let html = '';
+  for(let i=0;i<nodes;i++){
+    const load = Math.round(DATA.length/nodes + (Math.random()*8-4));
+    const pct = Math.round(20+Math.random()*60);
+    const latency = (Math.random()*2+0.5).toFixed(1);
+    const op = ops[Math.floor(Math.random()*ops.length)];
+    html += `<div class="node-card">
+      <div class="node-header">
+        <span class="node-name">Node-${i+1}</span>
+        <span class="node-dot" style="background:${colors[i%colors.length]};box-shadow:0 0 6px ${colors[i%colors.length]}"></span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Particiones: <span style="color:var(--text)">${load}</span></div>
+      <div style="font-size:10px;color:var(--muted)">CPU: ${pct}%</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[i%colors.length]}"></div></div>
+      <div style="font-size:10px;color:var(--muted)">Latencia: <span style="color:${colors[i%colors.length]}">${latency}ms</span></div>
+      <div style="font-size:9px;color:var(--muted);margin-top:4px">OP: <span style="color:var(--accent2)">${op}</span></div>
+    </div>`;
+  }
+  document.getElementById('nodes-grid').innerHTML = html;
+}
+
+function addLog(msg) {
+  const now = new Date().toTimeString().substring(0,8);
+  logLines.unshift(`[${now}] ${msg}`);
+  if(logLines.length>20) logLines.pop();
+  document.getElementById('cass-log').innerHTML = logLines.join('<br>');
+}
+
+function renderTable() {
+  const search = (document.getElementById('search-input').value||'').toLowerCase();
+  const filterEstado = document.getElementById('filter-estado').value;
+  const filterRiesgo = document.getElementById('filter-riesgo').value;
+
+  filteredData = DATA.filter(d=>{
+    const matchSearch = !search || [d.cliente_nombre,d.producto_nombre,d.cliente_ubicacion,String(d.id_orden)].some(f=>f.toLowerCase().includes(search));
+    const matchEstado = !filterEstado || d.estado===filterEstado;
+    const matchRiesgo = filterRiesgo==='' || String(d.riesgo_tardanza)===filterRiesgo;
+    return matchSearch && matchEstado && matchRiesgo;
+  });
+
+  const total = filteredData.length;
+  const pages = Math.ceil(total/PER_PAGE);
+  if(currentPage>pages) currentPage=1;
+  const slice = filteredData.slice((currentPage-1)*PER_PAGE, currentPage*PER_PAGE);
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = slice.map(d=>`
+    <tr>
+      <td style="color:var(--accent);font-weight:500">#${d.id_orden}</td>
+      <td style="color:var(--muted)">${d.fecha}</td>
+      <td>${d.cliente_nombre}</td>
+      <td><span class="cat-pill">${d.cliente_ubicacion}</span></td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.producto_nombre}</td>
+      <td style="color:var(--accent4);font-weight:500">$${d.precio.toFixed(2)}</td>
+      <td>${getStatusBadge(d.estado)}</td>
+      <td><span class="risk-indicator"><span class="risk-dot" style="background:${d.riesgo_tardanza?'var(--danger)':'var(--success)'}"></span>${d.riesgo_tardanza?'Riesgo':'OK'}</span></td>
+      <td>
+        <button class="btn btn-sm" onclick="openEdit(${d.id_orden})" style="margin-right:4px"><i class="ti ti-edit" aria-hidden="true"></i></button>
+        <button class="btn btn-sm btn-danger" onclick="deleteOrder(${d.id_orden})"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      </td>
+    </tr>
+  `).join('');
+
+  let pagHTML = `<span style="font-size:11px;color:var(--muted);margin-right:8px">${total} registros</span>`;
+  for(let i=1;i<=Math.min(pages,8);i++){
+    pagHTML+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  document.getElementById('pagination').innerHTML = pagHTML;
+}
+
+function goPage(p) { currentPage=p; renderTable(); }
+
+function openEdit(id) {
+  const d = DATA.find(x=>x.id_orden===id);
+  if(!d) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title"><i class="ti ti-edit" aria-hidden="true"></i> Editar Orden #${d.id_orden}</div>
+        <button class="close-btn" onclick="this.closest('.modal-overlay').remove()"><i class="ti ti-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="form-group"><div class="form-label">Cliente</div><input id="e-nombre" value="${d.cliente_nombre}"></div>
+      <div class="form-group"><div class="form-label">Ciudad</div><input id="e-ciudad" value="${d.cliente_ubicacion}"></div>
+      <div class="form-group"><div class="form-label">Estado</div>
+        <select id="e-estado">
+          ${['COMPLETE','PENDING','CANCELED','CLOSED','PROCESSING','PENDING_PAYMENT','SUSPECTED_FRAUD'].map(s=>`<option ${s===d.estado?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><div class="form-label">Precio ($)</div><input id="e-precio" type="number" value="${d.precio}"></div>
+      <div class="form-group"><div class="form-label">Riesgo de tardanza</div>
+        <select id="e-riesgo"><option value="false" ${!d.riesgo_tardanza?'selected':''}>No</option><option value="true" ${d.riesgo_tardanza?'selected':''}>Sí</option></select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEdit(${id})">Guardar cambios</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function saveEdit(id) {
+  const d = DATA.find(x=>x.id_orden===id);
+  if(!d) return;
+  d.cliente_nombre = document.getElementById('e-nombre').value;
+  d.cliente_ubicacion = document.getElementById('e-ciudad').value;
+  d.estado = document.getElementById('e-estado').value;
+  d.precio = parseFloat(document.getElementById('e-precio').value)||d.precio;
+  d.riesgo_tardanza = document.getElementById('e-riesgo').value==='true';
+  document.querySelector('.modal-overlay').remove();
+  renderTable();
+  showToast('Orden #'+id+' actualizada correctamente');
+  addLog(`[WRITE] UPDATE order ${id} → estado=${d.estado}`);
+  saveJSON();
+}
+
+function deleteOrder(id) {
+  if(!confirm('¿Eliminar la orden #'+id+'?')) return;
+  const i = DATA.findIndex(x=>x.id_orden===id);
+  if(i>-1) { DATA.splice(i,1); renderTable(); document.getElementById('total-records').textContent=DATA.length; document.getElementById('m-total').textContent=DATA.length; }
+  showToast('Orden #'+id+' eliminada');
+  addLog(`[DELETE] order ${id} removed from cluster`);
+  saveJSON();
+}
+
+function exportCSV() {
+  const cols=['id_orden','fecha','cliente_nombre','cliente_ubicacion','producto_nombre','precio','estado','riesgo_tardanza'];
+  const rows=[cols.join(','),...filteredData.map(d=>cols.map(c=>d[c]).join(','))];
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.join('\n'));
+  a.download='pedidos_export.csv'; a.click();
+}
+
+function buildProductGrid() {
+  const d = new Date(); document.getElementById('f-fecha').value=d.toISOString().split('T')[0];
+  document.getElementById('product-grid').innerHTML = PRODUCTS.map((p,i)=>`
+    <div class="product-card" id="pc-${i}" onclick="selectProduct(${i})">
+      <div class="product-name">${p.name}</div>
+      <div class="product-price">$${p.price.toFixed(2)}</div>
+      <div class="product-cat">${p.cat}</div>
+    </div>`).join('');
+}
+
+function selectProduct(i) {
+  selectedProduct = PRODUCTS[i];
+  document.querySelectorAll('.product-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('pc-'+i).classList.add('selected');
+  updateConfirm();
+}
+
+function updateConfirm() {
+  if(!selectedProduct) return;
+  const nombre=document.getElementById('f-nombre').value||'—';
+  const ciudad=document.getElementById('f-ciudad').value||'—';
+  const estado=document.getElementById('f-estado').value;
+  const riesgo=document.getElementById('f-riesgo').value==='true';
+  const shipping=9.99, tax=selectedProduct.price*0.07;
+  document.getElementById('confirm-box').innerHTML=`
+    <div class="confirm-row"><span style="color:var(--muted)">Producto</span><span>${selectedProduct.name}</span></div>
+    <div class="confirm-row"><span style="color:var(--muted)">Cliente</span><span>${nombre}</span></div>
+    <div class="confirm-row"><span style="color:var(--muted)">Destino</span><span>${ciudad}</span></div>
+    <div class="confirm-row"><span style="color:var(--muted)">Estado</span><span>${getStatusBadge(estado)}</span></div>
+    <div class="confirm-row"><span style="color:var(--muted)">Precio base</span><span>$${selectedProduct.price.toFixed(2)}</span></div>
+    <div class="confirm-row"><span style="color:var(--muted)">Envío</span><span>$${shipping.toFixed(2)}</span></div>
+    <div class="confirm-row"><span style="color:var(--muted)">Impuesto (7%)</span><span>$${tax.toFixed(2)}</span></div>
+    <div class="confirm-row total"><span>Total</span><span>$${(selectedProduct.price+shipping+tax).toFixed(2)}</span></div>
+    ${riesgo?'<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,0.1);border-radius:4px;font-size:10px;color:var(--danger)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Riesgo de tardanza activado</div>':''}
+  `;
+}
+
+function submitOrder() {
+  if(!selectedProduct) { showToast('Selecciona un producto primero','danger'); return; }
+  const nombre=document.getElementById('f-nombre').value;
+  const ciudad=document.getElementById('f-ciudad').value;
+  if(!nombre||!ciudad) { showToast('Rellena todos los campos','danger'); return; }
+  const newId=Math.max(...DATA.map(d=>d.id_orden))+1;
+  const newOrder={
+    id_orden:newId, fecha:document.getElementById('f-fecha').value,
+    estado:document.getElementById('f-estado').value,
+    riesgo_tardanza:document.getElementById('f-riesgo').value==='true',
+    cliente_nombre:nombre, cliente_ubicacion:ciudad,
+    producto_nombre:selectedProduct.name, precio:selectedProduct.price,
+    market_brand_1:'—', market_category_1:'—', market_price_1:0,
+    market_brand_2:'—', market_category_2:'—', market_price_2:0
+  };
+  DATA.unshift(newOrder);
+  document.getElementById('total-records').textContent=DATA.length;
+  document.getElementById('m-total').textContent=DATA.length;
+  clearForm();
+  showToast('Pedido #'+newId+' creado correctamente');
+  addLog(`[WRITE] INSERT order ${newId} → ${selectedProduct.name} → ${ciudad}`);
+  saveJSON();
+}
+
+function clearForm() {
+  document.getElementById('f-nombre').value='';
+  document.getElementById('f-ciudad').value='';
+  selectedProduct=null;
+  document.querySelectorAll('.product-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('confirm-box').innerHTML='<div style="font-size:11px;color:var(--muted);text-align:center;padding:12px">Selecciona un producto para ver el resumen</div>';
+}
+
+function setDefaultDate() { document.getElementById('f-fecha').value=new Date().toISOString().split('T')[0]; }
+
+// ─── APPLY PRICE REGULATION (manual trigger) ──────────────────────────────────
+function applyPriceRegulation() {
+  let count = 0;
+  DATA = DATA.map(d => {
+    const mp1 = parseFloat(d.market_price_1) || 0;
+    const mp2 = parseFloat(d.market_price_2) || 0;
+    if (mp1 > 0 && mp2 > 0) {
+      const avgMarket = (mp1 + mp2) / 2;
+      const pct = Math.random() * 0.05;
+      d.precio = parseFloat((avgMarket * (1 + pct)).toFixed(2));
+      count++;
+    }
+    return d;
+  });
+  // Recalcular revenue
+  const revenue = DATA.reduce((a,b)=>a+b.precio,0);
+  document.getElementById('m-revenue').textContent = '$' + revenue.toLocaleString('en-US',{maximumFractionDigits:0});
+  renderTable();
+  showToast(`Precios regulados: ${count} registros ajustados (0-5% sobre mercado)`);
+  addLog(`[PRICE] Regulación aplicada → ${count} precios recalculados (±0-5% vs mercado)`);
+  saveJSON();
+}
+
+function showToast(msg, type='success') {
+  const colorMap = { success: 'var(--success)', danger: 'var(--danger)', warning: 'var(--warning)' };
+  const col = colorMap[type] || colorMap.success;
+  const t=document.createElement('div');
+  t.className='toast';
+  t.style.borderColor=col;
+  t.style.color=col;
+  t.textContent=msg; document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); },2800);
+}
+
+const pageMap = {
+  dashboard:'Dashboard Comercial',
+  analytics:'Analytics & Mercado',
+  cassandra:'Simulador Cassandra',
+  orders:'Gestión de Pedidos',
+  neworder:'Nuevo Pedido'
+};
+const metaMap = {
+  dashboard:'Vista general de operaciones logísticas',
+  analytics:'Análisis competitivo de marcas y categorías de mercado',
+  cassandra:'Arquitectura distribuida NoSQL — simulación en tiempo real',
+  orders:'Tabla de pedidos — buscar, editar, eliminar y exportar',
+  neworder:'Formulario de creación de pedido nuevo'
+};
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('nav-'+page).classList.add('active');
+  document.getElementById('page-title').textContent=pageMap[page];
+  document.getElementById('page-meta').textContent=metaMap[page];
+  if(page==='cassandra') { updateCassandra(); startCassLive(); }
+  else { stopCassLive(); }
+  if(page==='orders') renderTable();
+}
+
+let cassLiveInterval = null;
+function startCassLive() {
+  if(cassLiveInterval) return;
+  const ops = ['READ','WRITE','COMPACT','REPAIR','FLUSH','STREAM'];
+  cassLiveInterval = setInterval(()=>{
+    const nodes = parseInt(document.getElementById('node-count').value);
+    const op = ops[Math.floor(Math.random()*ops.length)];
+    const node = Math.ceil(Math.random()*nodes);
+    const lat = (Math.random()*3+0.2).toFixed(2);
+    addLog(`[${op}] Node-${node} → ${lat}ms — partition_key:${Math.floor(Math.random()*99999)}`);
+  },1500);
+}
+function stopCassLive() { if(cassLiveInterval){clearInterval(cassLiveInterval);cassLiveInterval=null;} }
+
+function startClock() {
+  setInterval(()=>{
+    const n=new Date();
+    document.getElementById('clock-display').textContent=n.toTimeString().substring(0,8);
+  },1000);
+}
+
+document.addEventListener('input',e=>{
+  if(['f-nombre','f-ciudad','f-estado','f-riesgo','f-fecha'].includes(e.target.id)) updateConfirm();
+});
+
+startClock();
+initData();
+</script>
